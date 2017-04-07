@@ -1,0 +1,3 @@
+rootProject.name = 'Tebble'
+
+include ':app'
