@@ -1,51 +1,64 @@
-import React, { Component } from 'react';
+import React from 'react';
 import {
   AppRegistry,
-  StyleSheet,
   Text,
   View,
   Button,
-  Alert
 } from 'react-native';
+import { StackNavigator } from 'react-navigation';
 
-
-export default class App extends Component {
-
-  state = {game: false,}
-
-  _handlePress() {
-    this.setState({ game: !this.state.game });
-  }
-
+class HomeScreen extends React.Component {
+  static navigationOptions = {
+    title: 'Tebble the Game',
+  };
   render() {
+    const { navigate } = this.props.navigation;
     return (
-        <View style={styles.container}>
-          <Text style={styles.welcome}>
-             Tebble
-          </Text>
-          <View style = {styles.bton}>
-            <Button 
-              onPress={() => this._handlePress()}
-              title="Play"
-              accessibilityLabel="Learn more about this purple button"/>
-          </View>
-        </View> 
-      );
+      <View>
+        <Text> Tebble the Game </Text>
+        <Button
+          onPress={() => navigate('Game')}
+          title="Play"
+        />
+        <Button
+          onPress={() => navigate('Settings')}
+          title="Settings"
+        />
+      </View> /// stop annoying editor stuff
+    );
   }
-
-
 }
 
+class GameScreen extends React.Component {
+  static navigationOptions = {
+    title: 'Play the Game',
+  };
+  render() {
+    return (
+      <View>
+        <Text>Play the game</Text>
+      </View>
+    );
+  }
+}
 
+class SettingScreen extends React.Component {
+  static navigationOptions = {
+    title: 'Settings',
+  };
+  render() {
+    return (
+      <View>
+        <Text>Settings</Text>
+      </View>
+    );
+  }
+}
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: '#f0f8ff',
-  },
-  welcome: {
-    fontSize: 40,
-    margin: 40,
-  },
+const App = StackNavigator({
+  Home: { screen: HomeScreen },
+  Game: { screen: GameScreen },
+  Settings: { screen: SettingScreen },
 });
+
+AppRegistry.registerComponent('Tebble', () => App);
