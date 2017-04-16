@@ -1,0 +1,20 @@
+import React from 'react';
+import {
+  AppRegistry,
+  Text,
+  View,
+  Button,
+} from 'react-native';
+
+class GameScreen extends React.Component {
+  static navigationOptions = {
+    headerVisible: false
+  };
+  render() {
+    return (
+      <View>
+        <Text>Play the game</Text>
+      </View>
+    );
+  }
+}
