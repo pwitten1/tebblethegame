@@ -13,6 +13,8 @@ export class Cell extends Component {
 			letter: props.string,
 			value: props.number,
 			size: props.size,
+			color: props.color,
+
 		}
 	}
 
@@ -20,16 +22,20 @@ export class Cell extends Component {
 		this.setState({string});
 	}
 
+	changeColor(color){
+		this.setState({color});
+	}
+
 	changeValue(number){
 		this.setState({number});
 	}
 
     render() {
-        var {string, number, size} = this.state
+        var {string, number, size, color} = this.state
 
-        return (<View style = {{borderColor: 'black', backgroundColor: 'white', width: size, height:size, borderWidth: 0}}>
+        return (<View style = {{borderColor: 'black', backgroundColor: color , width: size, height:size, borderWidth: 0.5}}>
         		<TouchableOpacity>
-        		<Text style={{textAlign: 'center', color:'black', lineHeight: 15}}>{'\n'}{this.state.letter}</Text>
+        		<Text style={{textAlign: 'center', color:'white', lineHeight: 10}}>{'\n'}{this.state.letter}</Text>
         		</TouchableOpacity>
         	</View>)
     }

@@ -1,13 +1,12 @@
 import React, { Component } from 'react';
 import {View, StyleSheet, TouchableOpacity, Text} from 'react-native';
-import Cell from './Cell';
+import Grid from './Grid';
 
 export class Game extends Component {
     render() {
         return (
             <View style ={styles.container}>
-            <Cell size = {48} string = {'A'} number = {1}/>
-            <Cell size = {48} string = {'A'} number = {1}/>
+                <Grid w = {8} h = {16} />
         	</View>
         );
     }

@@ -1,5 +1,5 @@
 import React from 'react';
-
+import Game from './Game';
 import {
   AppRegistry,
   Text,
@@ -8,13 +8,11 @@ import {
 
 export default class GameScreen extends React.Component {
   static navigationOptions = {
-    headerVisible: false
+    title: 'Play the Game'
   };
   render() {
     return (
-      <View>
-        <Text>Play the game</Text>
-      </View>
+      <Game />
     );
   }
 }
