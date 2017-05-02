@@ -1,20 +1,18 @@
-import React from 'react';
+import React, {Component} from 'react';
 import {
   AppRegistry,
   Text,
-  View,
-  Button,
 } from 'react-native';
 import { StackNavigator } from 'react-navigation';
 
-import HomeScreen from './HomeScreen'
-import GameScreen from './GameScreen'
-import SettingScreen from './SettingScreen'
+import Game from './Game';
 
-const App = StackNavigator({
-  Home: { screen: HomeScreen },
-  Game: { screen: GameScreen },
-  Settings: { screen: SettingScreen },
-});
+class App extends Component{
+  render() {
+  	return(
+  		<Game/>
+  		)
+  }
+}
 
 AppRegistry.registerComponent('Tebble', () => App);
