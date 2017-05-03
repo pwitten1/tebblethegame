@@ -6,13 +6,14 @@ StyleSheet,
 Text,
 Modal,
 TouchableOpacity,
-Image
+Image,
+TextInput
 } from 'react-native';
 import Cell from './Cell';
 
 export class Grid extends Component{
 
-        constructor(props) {
+    constructor(props) {
         super(props);
         this.state = {
             w: props.w,
@@ -22,14 +23,17 @@ export class Grid extends Component{
             score: 0,
             started: false,
             gameOver: true,
-            paused: false
+            paused: false,
+            leaderboard: false
         }
+        this.word = "";
         this.grid = [];
         this.touched = new Map();
         this.cells = new Map();
-        this.speed = 450;
+        this.speed = 250;
         this.changeTile = this.changeTile.bind(this);
-
+        this.dictionary = require('../Tebble/app.json');
+ 
     }
 
     componentDidMount() {
@@ -97,7 +101,7 @@ export class Grid extends Component{
         this.loadNextTile();
         clearInterval(this.interval);
         this.interval = setInterval(() => {
-            if(!this.state.paused) {
+            if(!this.state.paused && !this.state.leaderboard) {
                 this.step()
             }
         }, this.speed)
@@ -111,6 +115,13 @@ export class Grid extends Component{
         }
         return 0;
     }
+
+    wordchecker() {
+        var position = this.dictionary.indexOf(this.word);
+        console.log(position);
+        return position;
+    }
+
 
     step() {
         var didMove = 0;
@@ -159,12 +170,12 @@ export class Grid extends Component{
 
     renderButtons() {
         return (
-            <View style={{flexDirection: 'row', justifyContent: 'space-around'}}>
+            <View style={{flexDirection: 'row', justifyContent: 'space-around', paddingTop: 15}}>
                 <TouchableOpacity onPress={() => this.shiftCells('left')}>
                     <Image style={styles.img} source={require('../Tebble/left-filled.png')}/>
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => this.step()}>
-                    <Image style={styles.img} source={require('../Tebble/down_arrow.png')}/>
+                <TouchableOpacity onPress={() => this.wordchecker()}>
+                    <Image style={{width: 100, height: 40}} source={require('../Tebble/checkbutton.png')}/>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => this.shiftCells('right')}>
                     <Image style={styles.img} source={require('../Tebble/right-filled.png')}/>
@@ -178,11 +189,12 @@ export class Grid extends Component{
         if(this.grid[i][j] != 0 && ((i < this.state.h-1 && this.grid[i+1][j] != 0) || i == this.state.h-1)){
             this.cells.get(i+''+j).changeTouched(true);
             this.touched.set(i+''+j, 1);
+            this.setState({word: this.state.word + String.fromCharCode(64 + this.grid[i][j])})
         }
     }
 
     renderCells() {
-        var size = 45;
+        var size = 50;
         // console.log('rendering grid');
         return this.state.grid.map((row, i) => {
             return (
@@ -228,6 +240,27 @@ export class Grid extends Component{
             </Modal> ///
         )
     }
+    renderLeaders() {
+        return (
+            <Modal 
+                animationType={"slide"}
+                transparent={true}
+                visible={this.state.leaderboard}
+                style={{flex: 1}}
+            >
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
+                    <Text style={{fontSize: 64, fontWeight: '800'}}>
+                        <Text style={{color: 'blue'}}>Leaders</Text>
+                    </Text>
+                    <TouchableOpacity onPress={() => this.setState({leaderboard: false})}>
+                        <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
+                            RESUME    
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </Modal>
+        )
+    }
 
     renderSettings() {
         return (
@@ -241,6 +274,11 @@ export class Grid extends Component{
                     <Text style={{fontSize: 64, fontWeight: '800'}}>
                         <Text style={{color: 'blue'}}>PAUSED</Text>
                     </Text>
+                    <TextInput
+                        style={{height: 40, color: 'lightsalmon', fontWeight: '400', placeholderTextColor:'lightsalmon', justifyContent: 'center'}}
+                        placeholder="Set Your Username:"
+                        onChangeText={(text) => this.setState({text})}
+                    />
                     <TouchableOpacity onPress={() => this.setState({paused: false})}>
                         <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
                             RESUME    
@@ -255,11 +293,17 @@ export class Grid extends Component{
     render(){
         return (
             <View style={{flex: 1, justifyContent: 'space-around'}}>
-                <View style={{padding: 15, justifyContent: 'space-between', alignItems: 'center', flexDirection: 'row'}}>
-                    <Text style={{fontWeight: '700', fontSize: 26}}>Score: {this.state.score}</Text>
-                    <TouchableOpacity onPress={() => this.setState({paused: true})}>
-                        <Image style={styles.img} source={require('../Tebble/pausebutton.png')}/>
+                <View style={{padding: 15, paddingBottom: 5, justifyContent: 'space-between', alignItems: 'center', flexDirection: 'row'}}>
+                    <Text style={{fontWeight: '700', fontSize: 42, color: 'darkgray'}}>Score: {this.state.score}</Text>
+                    <TouchableOpacity onPress={() => this.setState({leaderboard: true})}>
+                        <Image style={{width: 40, height: 40}} source={require('../Tebble/leaders.png')}/>
                     </TouchableOpacity>
+                    <TouchableOpacity onPress={() => this.setState({paused: true})}>
+                        <Image style={{width: 42, height: 42}} source={require('../Tebble/pausebutton.png')}/>
+                    </TouchableOpacity>
+                </View>
+                <View style={{paddingLeft: 15, paddingBottom: 10}}> 
+                    <Text style={{fontWeight: '700', fontSize: 16, color: 'gray'}}>Word: {this.state.word}</Text>
                 </View>
                 <View style={{flexDirection: 'row', justifyContent: 'center'}}>
                     <View style={{backgroundColor: 'white'}}>
@@ -269,6 +313,7 @@ export class Grid extends Component{
                 {this.renderButtons()}
                 {this.renderStart()}
                 {this.renderSettings()}
+                {this.renderLeaders()}
             </View>
         )
     }
