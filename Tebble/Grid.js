@@ -7,7 +7,8 @@ Text,
 Modal,
 TouchableOpacity,
 Image,
-TextInput
+TextInput,
+AsyncStorage
 } from 'react-native';
 import Cell from './Cell';
 
@@ -26,18 +27,21 @@ export class Grid extends Component{
             paused: false,
             leaderboard: false
         }
+        this.name = ""
         this.word = "";
         this.grid = [];
         this.touched = new Map();
         this.cells = new Map();
         this.speed = 250;
         this.changeTile = this.changeTile.bind(this);
-        this.dictionary = require('../Tebble/app.json');
+        this.dictionary = require('../Tebble/dict.json');
  
     }
 
     componentDidMount() {
         this.createGrid();
+        var getname = AsyncStorage.getItem("tebbleName");
+        this.setState({name: getname});
     }
 
     createGrid() {
@@ -56,6 +60,13 @@ export class Grid extends Component{
         this.grid = grid;
         this.setState({grid}, () => {
         });
+    }
+
+    saveName(text) {
+        this.setState({name: text});
+        AsyncStorage.setItem("tebbleName", text);
+        console.log(this.state.name);
+        console.log(AsyncStorage.getItem("tebbleName"));
     }
 
     changeTile(i, j, cell) { //must fix!!!
@@ -118,7 +129,7 @@ export class Grid extends Component{
 
     wordchecker() {
         var position = this.dictionary.indexOf(this.word);
-        console.log(position);
+        console.log(typeof this.dictionary);
         return position;
     }
 
@@ -271,13 +282,16 @@ export class Grid extends Component{
                 style={{flex: 1}}
             >
                 <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
+                    <Text style={{fontSize: 32, fontWeight: '500', color: 'lightsalmon'}}>
+                        Name: {this.name}
+                    </Text>
                     <Text style={{fontSize: 64, fontWeight: '800'}}>
                         <Text style={{color: 'blue'}}>PAUSED</Text>
                     </Text>
                     <TextInput
-                        style={{height: 40, color: 'lightsalmon', fontWeight: '400', placeholderTextColor:'lightsalmon', justifyContent: 'center'}}
-                        placeholder="Set Your Username:"
-                        onChangeText={(text) => this.setState({text})}
+                        style={{height: 40, paddingLeft: 100}}
+                        placeholder='what is your name'
+                        onChangeText={(text) => this.saveName(text)}
                     />
                     <TouchableOpacity onPress={() => this.setState({paused: false})}>
                         <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
@@ -285,7 +299,7 @@ export class Grid extends Component{
                         </Text>
                     </TouchableOpacity>
                 </View>
-            </Modal>
+            </Modal>///
         )
     }
 

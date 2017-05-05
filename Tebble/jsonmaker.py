@@ -1,5 +1,5 @@
 import json
-file = open("longwords.txt")
+file = open("dictionary.txt")
 arr = []
 txt = file.readline()
 while txt != "":
