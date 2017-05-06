@@ -12,11 +12,6 @@ AsyncStorage
 } from 'react-native';
 import Cell from './Cell';
 
-    //NOTES:
-    /*  Change word to an array that stores i+j+letter
-        use ChangeTile to remove words, do not allow
-        for reclicks, store order of Tiles in word!
-    */
 
 export class Grid extends Component{
 
@@ -31,7 +26,8 @@ export class Grid extends Component{
             started: false,
             gameOver: true,
             paused: false,
-            leaderboard: false
+            leaderboard: false,
+            rules: false
         }
         this.name = ""
         this.word = [];
@@ -141,7 +137,7 @@ export class Grid extends Component{
     }
 
     startGame() {
-        this.setState({gameOver: false, started: true, score: 0});
+        this.setState({gameOver: false, started: true, score: 0, word: []});
         for(i = 0; i < this.state.h; i++) {
             for(j = 0; j < this.state.w; j++) {//resets the board before starting
                 this.changeTile(i, j, 0);
@@ -279,7 +275,11 @@ export class Grid extends Component{
             var counter;
             for (counter = 0; counter < this.state.word.length; counter++) {
                 var cellinfo = this.state.word[counter].split(',');
-                if (cellinfo[0] == i && cellinfo[1] == j) { //this cell has already been pushed, return
+                if (cellinfo[0] == i && cellinfo[1] == j) { //this cell has already been pushed, unclick and return
+                    var tempword = this.state.word;
+                    tempword.splice(counter, 1);
+                    this.setState({word: tempword});
+                    this.cells.get(i+''+j).changeTouched(false);
                     return;
                 }
             }
@@ -306,7 +306,7 @@ export class Grid extends Component{
     }    
 
     renderCells() {
-        var size = 50;
+        var size = 60;
         return this.state.grid.map((row, i) => {
             return (
                 <View key={i} style={{flexDirection: 'row'}}>
@@ -344,7 +344,7 @@ export class Grid extends Component{
                         <Text style={{color: 'cyan'}}>E</Text>
                     </Text>
                     <TouchableOpacity onPress={() => {this.startGame()}}>
-                        <Text style={{fontSize: 24, color: 'green', fontWeight: '500'}}>
+                        <Text style={{fontSize: 24, color: 'lightgreen', fontWeight: '500'}}>
                             {this.state.started ? "Final Score: " + this.state.score : ''}
                         </Text>
                         <Text style={{fontSize: 32, color: 'salmon', fontWeight: '500'}}>
@@ -366,7 +366,7 @@ export class Grid extends Component{
             >
                 <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
                     <Text style={{fontSize: 64, fontWeight: '800'}}>
-                        <Text style={{color: 'blue'}}>Leaders</Text>
+                        <Text style={{color: 'khaki'}}>Leaders</Text>
                     </Text>
                     <TouchableOpacity onPress={() => this.setState({leaderboard: false})}>
                         <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
@@ -377,6 +377,45 @@ export class Grid extends Component{
             </Modal>
         )
     }
+    /*
+    renderRules() {
+        return (
+            <Modal 
+                animationType={"slide"}
+                transparent={true}
+                visible={this.state.rules}
+                style={{flex: 1}}
+            >
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgb(0,0,0)'}}>
+                    <Text style={{fontSize: 42, fontWeight: '800'}}>
+                        <Text style={{color: 'crimson'}}>Tebble: the rules</Text>
+                    </Text>
+                    <Image style={{height: 100, width: 200}} source={require('../Tebble/tap.png')}/>
+                    <Text style={{fontSize: 20, fontWeight: '400', color: 'bisque'}}>
+                        Tap on the letters in order to form words
+                    </Text>
+                    <Image style={{height: 100, width: 200}} source={require('../Tebble/checkword.png')}/>
+                    <Text style={{fontSize: 20, fontWeight: '400', color: 'bisque'}}>
+                        Submitting words will cause the letters to disappear, and increase your score
+                    </Text>
+                    <Image style={{height: 60, width: 60}} source={require('../Tebble/left-filled.png')}/>
+                    <Image style={{height: 60, width: 60}} source={require('../Tebble/right-filled.png')}/>
+                    <Text style={{fontSize: 20, fontWeight: '400', color: 'bisque'}}>
+                        Use the two arrow keys to move the letters as they fall
+                    </Text>
+                    <Text style={{fontSize: 20, fontWeight: '400', color: 'bisque'}}>
+                        The game ends when the boardfills up all the way!
+                    </Text>
+
+                    <TouchableOpacity onPress={() => this.setState({rules: false})}>
+                        <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
+                            RESUME    
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </Modal>///
+        )
+    }    */
 
     renderSettings() {
         return (
@@ -391,7 +430,7 @@ export class Grid extends Component{
                         Name: {this.name}
                     </Text>
                     <Text style={{fontSize: 64, fontWeight: '800'}}>
-                        <Text style={{color: 'blue'}}>PAUSED</Text>
+                        <Text style={{color: 'lightseagreen'}}>PAUSED</Text>
                     </Text>
                     <TextInput
                         style={{height: 40, paddingLeft: 100}}
@@ -412,7 +451,7 @@ export class Grid extends Component{
         return (
             <View style={{flex: 1, justifyContent: 'space-around'}}>
                 <View style={{padding: 15, paddingBottom: 5, justifyContent: 'space-between', alignItems: 'center', flexDirection: 'row'}}>
-                    <Text style={{fontWeight: '700', fontSize: 42, color: 'darkgray'}}>Score: {this.state.score}</Text>
+                    <Text style={{fontWeight: '700', fontSize: 42, color: 'darkgray'}}>Score: {this.state.score}</Text> 
                     <TouchableOpacity onPress={() => this.setState({leaderboard: true})}>
                         <Image style={{width: 40, height: 40}} source={require('../Tebble/leaders.png')}/>
                     </TouchableOpacity>
