@@ -12,6 +12,12 @@ AsyncStorage
 } from 'react-native';
 import Cell from './Cell';
 
+    //NOTES:
+    /*  Change word to an array that stores i+j+letter
+        use ChangeTile to remove words, do not allow
+        for reclicks, store order of Tiles in word!
+    */
+
 export class Grid extends Component{
 
     constructor(props) {
@@ -20,7 +26,7 @@ export class Grid extends Component{
             w: props.w,
             h: props.h,
             grid: [],
-            word: "",
+            word: [],
             score: 0,
             started: false,
             gameOver: true,
@@ -28,7 +34,7 @@ export class Grid extends Component{
             leaderboard: false
         }
         this.name = ""
-        this.word = "";
+        this.word = [];
         this.grid = [];
         this.touched = new Map();
         this.cells = new Map();
@@ -73,6 +79,7 @@ export class Grid extends Component{
         this.cells.get(i+''+j).changeLetter(String.fromCharCode(64 + cell));
         if (cell == 0){
             this.cells.get(i+''+j).changeColor('white');
+            this.cells.get(i+''+j).changeTouched(false);
         }
         else{
             this.cells.get(i+''+j).changeColor('black');
@@ -93,13 +100,44 @@ export class Grid extends Component{
             this.setState({gameOver: !this.state.gameOver});
             return 0;
         }
-        var cell = Math.round(Math.random()*25)+1;
+        var cell = this.CharRandomizer();
         var startpos = Math.round(Math.random()*7);
         while (this.grid[0][startpos] != 0){
             startpos = Math.round(Math.random()*7);
         }
         this.changeTile(0, startpos, cell);
         return 1;
+    }
+
+    CharRandomizer() { //spawn letters at a semi-natural frequency
+        var num = Math.round(Math.random()*93);
+        if (num < 5) { return 1; } //letter is 'a'
+        else if(num < 8) { return 2; } //letter is 'b'
+        else if(num < 10) { return 3; } //letter is 'c'
+        else if(num < 13) { return 4; } //letter is 'd'
+        else if(num < 20) { return 5; } //letter is 'e'
+        else if(num < 22) { return 6; } //letter is 'f'
+        else if(num < 26) { return 7; } //letter is 'g'
+        else if(num < 30) { return 8; } //letter is 'h'
+        else if(num < 36) { return 9; } //letter is 'i'
+        else if(num < 38) { return 10; } //letter is 'j'
+        else if(num < 41) { return 11; } //letter is 'k'
+        else if(num < 46) { return 12; } //letter is 'l'
+        else if(num < 50) { return 13; } //letter is 'm'
+        else if(num < 57) { return 14; } //letter is 'n'
+        else if(num < 62) { return 15; } //letter is 'o'
+        else if(num < 64) { return 16; } //letter is 'p'
+        else if(num < 65) { return 17; } //letter is 'q'
+        else if(num < 70) { return 18; } //letter is 'r'
+        else if(num < 76) { return 19; } //letter is 's'
+        else if(num < 82) { return 20; } //letter is 't'
+        else if(num < 87) { return 21; } //letter is 'u'
+        else if(num < 88) { return 22; } //letter is 'v'
+        else if(num < 89) { return 23; } //letter is 'w'
+        else if(num < 90) { return 24; } //letter is 'x'
+        else if(num < 92) { return 25; } //letter is 'y'
+        else if(num < 93) { return 26; } //letter is 'z'
+        return 1; //this should not happen, but return 'a'
     }
 
     startGame() {
@@ -127,12 +165,66 @@ export class Grid extends Component{
         return 0;
     }
 
-    wordchecker() {
-        var position = this.dictionary.indexOf(this.word);
-        console.log(typeof this.dictionary);
-        return position;
+    wordreturner() {
+        var word1 = "";
+        var i;
+        for(i = 0; i < this.state.word.length; i++) {
+            var charstorer = this.state.word[i].split(',');
+            word1 += String.fromCharCode(64 + parseInt(charstorer[2]));
+        }
+        return word1;
     }
 
+    wordchecker() {
+        var selected = this.wordreturner();
+        var spot = this.dictionary.indexOf(selected);
+        var i;
+        var scoreupdater = 0;
+        for(i = 0; i < this.state.word.length; i++) {
+            var position = this.state.word[i].split(',');
+            if(spot != -1) {
+                this.changeTile(position[0], position[1], 0);
+                scoreupdater += this.scorer(position[2]);
+            }
+            else {
+                this.cells.get(position[0]+''+position[1]).changeTouched(false);
+            }
+
+            console.log(position[0] + " " + position[1]);
+        }
+        this.setState({word: []});
+        this.setState({score: this.state.score + scoreupdater});
+    }
+
+    scorer(letter) {
+
+        if(letter == 1){ return 1; } //letter is 'a': worth 1 pt
+        else if(letter == 2){ return 3; } //letter is 'b': worth 3 pts
+        else if(letter == 3){ return 3; } //letter is 'c': worth 3 pts
+        else if(letter == 4){ return 2; } //letter is 'd': worth 2 pts
+        else if(letter == 5){ return 1; } //letter is 'e': worth 1 pt
+        else if(letter == 6){ return 4; } //letter is 'f': worth 4 pts
+        else if(letter == 7){ return 2; } //letter is 'g': worth 2 pts
+        else if(letter == 8){ return 4; } //letter is 'h': worth 4 pts
+        else if(letter == 9){ return 1; } //letter is 'i': worth 1 pt
+        else if(letter == 10){ return 8; } //letter is 'j': worth 8 pts
+        else if(letter == 11){ return 5; } //letter is 'k': worth 5 pts
+        else if(letter == 12){ return 1; } //letter is 'l': worth 1 pt
+        else if(letter == 13){ return 3; } //letter is 'm': worth 3 pts
+        else if(letter == 14){ return 1; } //letter is 'n': worth 1 pt
+        else if(letter == 15){ return 1; } //letter is 'o': worth 1 pt
+        else if(letter == 16){ return 3; } //letter is 'p': worth 3 pts
+        else if(letter == 17){ return 10; } //letter is 'q': worth 10 pts
+        else if(letter == 18){ return 1; } //letter is 'r': worth 1 pt
+        else if(letter == 19){ return 1; } //letter is 's': worth 1 pt
+        else if(letter == 20){ return 1; } //letter is 't': worth 1 pt
+        else if(letter == 21){ return 1; } //letter is 'u': worth 1 pt
+        else if(letter == 22){ return 4; } //letter is 'v': worth 4 pts
+        else if(letter == 23){ return 4; } //letter is 'w': worth 4 pts
+        else if(letter == 24){ return 8; } //letter is 'x': worth 8 pts
+        else if(letter == 25){ return 4; } //letter is 'y': worth 4 pts
+        else if(letter == 26){ return 10; } //letter is 'z': worth 10 pts
+    }
 
     step() {
         var didMove = 0;
@@ -179,6 +271,24 @@ export class Grid extends Component{
         }
     }
 
+
+    clickTile(i, j){
+        if(this.grid[i][j] != 0 && ((i < this.state.h-1 && this.grid[i+1][j] != 0) || i == this.state.h-1)){
+            this.cells.get(i+''+j).changeTouched(true);
+            this.touched.set(i+''+j, 1);
+            var counter;
+            for (counter = 0; counter < this.state.word.length; counter++) {
+                var cellinfo = this.state.word[counter].split(',');
+                if (cellinfo[0] == i && cellinfo[1] == j) { //this cell has already been pushed, return
+                    return;
+                }
+            }
+            var wordTemp = this.state.word;
+            wordTemp.push(i+','+j+','+this.grid[i][j]);
+            this.setState({word: wordTemp});
+        }
+    }
+
     renderButtons() {
         return (
             <View style={{flexDirection: 'row', justifyContent: 'space-around', paddingTop: 15}}>
@@ -193,20 +303,10 @@ export class Grid extends Component{
                 </TouchableOpacity>
             </View> ///
         )
-
-    }
-
-    clickTile(i, j){
-        if(this.grid[i][j] != 0 && ((i < this.state.h-1 && this.grid[i+1][j] != 0) || i == this.state.h-1)){
-            this.cells.get(i+''+j).changeTouched(true);
-            this.touched.set(i+''+j, 1);
-            this.setState({word: this.state.word + String.fromCharCode(64 + this.grid[i][j])})
-        }
-    }
+    }    
 
     renderCells() {
         var size = 50;
-        // console.log('rendering grid');
         return this.state.grid.map((row, i) => {
             return (
                 <View key={i} style={{flexDirection: 'row'}}>
@@ -244,13 +344,18 @@ export class Grid extends Component{
                         <Text style={{color: 'cyan'}}>E</Text>
                     </Text>
                     <TouchableOpacity onPress={() => {this.startGame()}}>
-                        <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
-                            {this.state.started ? 'TRY AGAIN' : 'START'}</Text>
+                        <Text style={{fontSize: 24, color: 'green', fontWeight: '500'}}>
+                            {this.state.started ? "Final Score: " + this.state.score : ''}
+                        </Text>
+                        <Text style={{fontSize: 32, color: 'salmon', fontWeight: '500'}}>
+                            {this.state.started ? 'TRY AGAIN' : 'START'}
+                        </Text>
                     </TouchableOpacity>
                 </View>
             </Modal> ///
         )
     }
+
     renderLeaders() {
         return (
             <Modal 
@@ -303,7 +408,6 @@ export class Grid extends Component{
         )
     }
 
-
     render(){
         return (
             <View style={{flex: 1, justifyContent: 'space-around'}}>
@@ -317,7 +421,7 @@ export class Grid extends Component{
                     </TouchableOpacity>
                 </View>
                 <View style={{paddingLeft: 15, paddingBottom: 10}}> 
-                    <Text style={{fontWeight: '700', fontSize: 16, color: 'gray'}}>Word: {this.state.word}</Text>
+                    <Text style={{fontWeight: '700', fontSize: 16, color: 'gray'}}>Word: {this.wordreturner()}</Text>
                 </View>
                 <View style={{flexDirection: 'row', justifyContent: 'center'}}>
                     <View style={{backgroundColor: 'white'}}>
@@ -343,7 +447,6 @@ var styles = StyleSheet.create({
         width: 50,
         height: 50
     }
-
 })
 
 export default Grid;

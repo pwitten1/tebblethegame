@@ -19,28 +19,23 @@ export class Cell extends Component {
 	}
 
 	changeLetter(string){
-		this.setState({letter:string});
+		this.setState({letter: string});
 	}
 
 	changeColor(color){
-		this.setState({color:color});
+		this.setState({color: color});
 	}
 
 	changeValue(number){
-		this.setState({value:number});
+		this.setState({value: number});
 	}
 
 	changeTouched(bool){
-		if (this.state.color == 'white'){
-			this.setState({touched: false});
-		}
-		else {
-			this.setState({touched: true});
-		}
+		this.setState({touched: bool});
 	}
 
     render() {
-        var {string, number, size, color} = this.state
+        var {string, number, size, color} = this.state;
         if (color == 'black' && this.state.touched == true){
         	color = 'darkorange';
         }
