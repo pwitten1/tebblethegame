@@ -1,8 +1,8 @@
 import React, { Component } from 'react';
 import PropTypes from 'prop-types'
 import {
-View, 
-StyleSheet, 
+View,
+StyleSheet,
 Text,
 Modal,
 TouchableOpacity,
@@ -11,7 +11,7 @@ TextInput,
 AsyncStorage
 } from 'react-native';
 import Cell from './Cell';
-
+import * as firebase from 'firebase';
 
 export class Grid extends Component{
 
@@ -22,7 +22,7 @@ export class Grid extends Component{
             h: props.h,
             grid: [],
             word: [],
-            highscores: [],
+            highscore: 0,
             score: 0,
             started: false,
             gameOver: true,
@@ -38,16 +38,29 @@ export class Grid extends Component{
         this.speed = 250;
         this.changeTile = this.changeTile.bind(this);
         this.dictionary = require('../Tebble/dict.json');
- 
+        this.topTenNames = [];
+        this.topTenScores = [];
+
+        // Initialize Firebase
+        var config = {
+          apiKey: "AIzaSyApDh39qPWTvfH92eEq79agpv5fyTsjcMI",
+          authDomain: "tebble-15923.firebaseapp.com",
+          databaseURL: "https://tebble-15923.firebaseio.com",
+          projectId: "tebble-15923",
+          storageBucket: "tebble-15923.appspot.com",
+          messagingSenderId: "347709083033"
+        };
+        firebase.initializeApp(config);
+        this.leaderboardDatabase = firebase.database();
     }
 
     componentDidMount() {
         this.createGrid();
-        AsyncStorage.getItem("Local_leaders").then((leadersStr)=>{
-        this.setState({highscores: leadersStr.split(',')})
-        });
-        AsyncStorage.getItem("local_name").then((nameStr)=>{
-        this.setState({name: nameStr})
+        var item = AsyncStorage.getItem("Local_highscore");
+        item.then((highscoreStr)=>{
+            if (highscoreStr !== undefined) {
+                this.setState({highscore: parseInt(highscoreStr, 10)});
+            }
         });
     }
 
@@ -55,8 +68,8 @@ export class Grid extends Component{
         var grid = [];
         var row = [];
 
-        for(i = 0; i < this.state.h; i++) { 
-            for(j = 0; j < this.state.w; j++) { 
+        for(i = 0; i < this.state.h; i++) {
+            for(j = 0; j < this.state.w; j++) {
                 var cell = 0;
                 row.push(cell);
                 this.touched.set(i+''+j, 0);
@@ -71,10 +84,9 @@ export class Grid extends Component{
 
     saveName(text) {
         this.setState({name: text});
-        AsyncStorage.setItem("local_name", text);
     }
 
-    changeTile(i, j, cell) { 
+    changeTile(i, j, cell) {
         this.cells.get(i+''+j).changeLetter(String.fromCharCode(64 + cell));
         if (cell == 0){
             this.cells.get(i+''+j).changeColor('white');
@@ -88,7 +100,7 @@ export class Grid extends Component{
     }
 
 
-    loadNextTile() { 
+    loadNextTile() {
         var counter = 0;
         for (var i = 0; i < this.state.w; i++){
             if (this.grid[0][i] == 0){
@@ -96,11 +108,9 @@ export class Grid extends Component{
             }
         }
         if (counter == 0){ //The game is over
-            var lead = this.state.highscores; //update the local highscores
-            lead.unshift(this.state.score);
-            lead.sort(function(a, b){return a-b});
-            this.setState({gameOver: !this.state.gameOver, highscores: lead});
-            AsyncStorage.setItem("Local_leaders", lead.toString());
+            var lead = Math.max(this.state.highscore, this.state.score); //update the local highscore
+            this.setState({gameOver: !this.state.gameOver, highscore: lead});
+            AsyncStorage.setItem("Local_highscore", lead.toString());
             return 0;
         }
         var cell = this.CharRandomizer();
@@ -232,8 +242,8 @@ export class Grid extends Component{
     step() {
         var didMove = 0;
         const {grid, w, h} = this.state;
-        for(i = this.state.h-2; i >= 0; i--) { 
-            for(j = this.state.w-1; j >= 0; j--) { 
+        for(i = this.state.h-2; i >= 0; i--) {
+            for(j = this.state.w-1; j >= 0; j--) {
                 if(this.state.grid[i][j] != 0){
                     didMove += this.MoveDown(i, j);
                 }
@@ -275,7 +285,7 @@ export class Grid extends Component{
     }
 
 
-    clickTile(i, j){
+    clickTile(i, j) {
         if(this.grid[i][j] != 0 && ((i < this.state.h-1 && this.grid[i+1][j] != 0) || i == this.state.h-1)){
             this.cells.get(i+''+j).changeTouched(true);
             this.touched.set(i+''+j, 1);
@@ -296,15 +306,39 @@ export class Grid extends Component{
         }
     }
 
-    LocalLdrs() {
-        var leaders = this.state.highscores.reverse()
-        return leaders.map(function(score, i){
-            return(
-                <View key={i}>
-                    <Text style={{fontSize: 32, fontWeight: '200'}}>{score}</Text>
-                </View>
-            );
+    addToLeaderboard(name, score) {
+        var users = this.leaderboardDatabase.ref('users');
+        var nameExists = false;
+        users.once('value')
+            .then(function(snapshot) {
+                var user = snapshot.child(name);
+                nameExists = user.exists();
+                if (nameExists) {
+                    var highscore = Math.max(user.child('highscore').val(), score);
+                    users.child(name).set({
+                        'highscore': highscore
+                    });
+                }
+                else {
+                    users.child(name).set({
+                        'highscore': score
+                    });
+                }
+            });
+    }
+
+    retrieveLeaders() {
+        var users = this.leaderboardDatabase.ref('users');
+        var topTenNames = [];
+        var topTenScores = [];
+        users.orderByChild("highscore").once("value", function(snapshot) {
+           snapshot.forEach(function(userSnap) {
+              topTenNames.push(userSnap.key);
+              topTenScores.push(userSnap.child('highscore').val());
+          });
         });
+        this.topTenNames = topTenNames.slice();
+        this.topTenScores = topTenScores.slice();
     }
 
     renderButtons() {
@@ -321,7 +355,7 @@ export class Grid extends Component{
                 </TouchableOpacity>
             </View> ///
         )
-    }    
+    }
 
     renderCells() {
         var size = 60;
@@ -337,7 +371,7 @@ export class Grid extends Component{
                             var color = 'black';
                             var letter = String.fromCharCode(64 + cell);
                         }
-                        return <View key={j} onStartShouldSetResponder={() => this.clickTile(i, j)}><Cell key={j} ref={(c) => { this.cells.set(i+''+j, c);}} color={color} size={size} string={letter}/></View>   
+                        return <View key={j} onStartShouldSetResponder={() => this.clickTile(i, j)}><Cell key={j} ref={(c) => { this.cells.set(i+''+j, c);}} color={color} size={size} string={letter}/></View>
                     })}
                 </View> ///
             )
@@ -346,60 +380,133 @@ export class Grid extends Component{
 
     renderStart() {
         return (
-            <Modal 
+            <Modal
                 animationType={"slide"}
                 transparent={true}
                 visible={this.state.gameOver}
-                style={{flex: 1}} 
-            >
-                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
-                    <Text style={{fontSize: 64, fontWeight: '800'}}>
-                        <Text style={{color: 'blue'}}>T</Text>
-                        <Text style={{color: 'orange'}}>E</Text>
-                        <Text style={{color: 'yellow'}}>B</Text>
-                        <Text style={{color: 'green'}}>B</Text>
-                        <Text style={{color: 'red'}}>L</Text>
-                        <Text style={{color: 'cyan'}}>E</Text>
-                    </Text>
-                    <TouchableOpacity onPress={() => {this.startGame()}}>
-                        <Text style={{fontSize: 24, color: 'lightgreen', fontWeight: '500'}}>
-                            {this.state.started ? "Final Score: " + this.state.score : ''}
-                        </Text>
-                        <Text style={{fontSize: 32, color: 'salmon', fontWeight: '500'}}>
-                            {this.state.started ? 'TRY AGAIN' : 'START'}
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </Modal> 
-        )
-    }
-
-    renderLeaders() {
-        return (
-            <Modal 
-                animationType={"slide"}
-                transparent={true}
-                visible={this.state.leaderboard}
                 style={{flex: 1}}
             >
                 <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
-                    <Text style={{fontSize: 48, fontWeight: '800'}}>
-                        <Text style={{color: 'black'}}>High Scores:</Text>
+                    <Text style={{fontSize: 64, fontWeight: '800'}}>
+                        <Text style={{color: 'red'}}>T</Text>
+                        <Text style={{color: 'orange'}}>E</Text>
+                        <Text style={{color: 'yellow'}}>B</Text>
+                        <Text style={{color: 'green'}}>B</Text>
+                        <Text style={{color: 'blue'}}>L</Text>
+                        <Text style={{color: 'purple'}}>E</Text>
                     </Text>
-                    {this.LocalLdrs()}
-                    <TouchableOpacity onPress={() => this.setState({leaderboard: false})}>
-                        <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
-                            RESUME    
+                    <TouchableOpacity onPress={() => {this.startGame()}}>
+                        <Text style={{fontSize: 32, color: 'salmon', fontWeight: '800'}}>
+                            START
                         </Text>
                     </TouchableOpacity>
                 </View>
             </Modal>
         )
     }
+
+    renderGameOver() {
+        return (
+            <Modal
+                animationType={"slide"}
+                transparent={true}
+                visible={this.state.gameOver}
+                style={{flex: 1}}
+            >
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
+                    <Text style={{fontSize: 50, fontWeight: '800'}}>
+                          <Text style={{color: 'red'}}>G</Text>
+                          <Text style={{color: 'orange'}}>A</Text>
+                          <Text style={{color: 'yellow'}}>M</Text>
+                          <Text style={{color: 'green'}}>E</Text>
+                          <Text> </Text>
+                          <Text style={{color: 'blue'}}>O</Text>
+                          <Text style={{color: 'cyan'}}>V</Text>
+                          <Text style={{color: 'pink'}}>E</Text>
+                          <Text style={{color: 'purple'}}>R</Text>
+                    </Text>
+                    <Text style={{fontSize: 24, color: 'white', fontWeight: '500'}}>
+                        Final Score: {this.state.score}
+                    </Text>
+                    <TextInput
+                        style={{height: 40, color: 'white', paddingLeft: 54}}
+                        placeholderTextColor = 'white'
+                        placeholder='Enter your name for the leaderboard'
+                        onChangeText={(text) => this.saveName(text)}
+                    />
+                    <TouchableOpacity onPress={() => {
+                        this.addToLeaderboard(this.state.name, this.state.score);
+                        this.setState({started: false});
+                    }}>
+                        <Text style={{fontSize: 32, color: 'lightseagreen', fontWeight: '800'}}>
+                            SUBMIT
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => {this.startGame()}}>
+                        <Text style={{fontSize: 32, color: 'salmon', fontWeight: '800'}}>
+                            TRY AGAIN
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </Modal>
+        )
+    }
+
+    renderLeaders() {
+        return (
+            <Modal
+                animationType={"slide"}
+                transparent={false}
+                visible={this.state.leaderboard}
+                style={{flex: 1}}
+            >
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.2)'}}>
+                    <Text style={{fontSize: 40, fontWeight: '800'}}>
+                        <Text style={{color: 'lightseagreen'}}>LEADERBOARD</Text>
+                    </Text>
+                    <Text style={{fontSize: 15, fontWeight: '800'}}>
+                        1. {this.topTenNames[0]}: {this.topTenScores[0]}
+                    </Text>
+                    <Text style={{fontSize: 15, fontWeight: '800'}}>
+                        2. {this.topTenNames[1]}: {this.topTenScores[1]}
+                    </Text>
+                    <Text style={{fontSize: 15, fontWeight: '800'}}>
+                        3. {this.topTenNames[2]}: {this.topTenScores[2]}
+                    </Text>
+                    <Text style={{fontSize: 15, fontWeight: '800'}}>
+                        4. {this.topTenNames[3]}: {this.topTenScores[3]}
+                    </Text>
+                    <Text style={{fontSize: 15, fontWeight: '800'}}>
+                        5. {this.topTenNames[4]}: {this.topTenScores[4]}
+                    </Text>
+                    <Text style={{fontSize: 15, fontWeight: '800'}}>
+                        6. {this.topTenNames[5]}: {this.topTenScores[5]}
+                    </Text>
+                    <Text style={{fontSize: 15, fontWeight: '800'}}>
+                        7. {this.topTenNames[6]}: {this.topTenScores[6]}
+                    </Text>
+                    <Text style={{fontSize: 15, fontWeight: '800'}}>
+                        8. {this.topTenNames[7]}: {this.topTenScores[7]}
+                    </Text>
+                    <Text style={{fontSize: 15, fontWeight: '800'}}>
+                        9. {this.topTenNames[8]}: {this.topTenScores[8]}
+                    </Text>
+                    <Text style={{fontSize: 15, fontWeight: '800'}}>
+                        10. {this.topTenNames[9]}: {this.topTenScores[9]}
+                    </Text>
+                    <TouchableOpacity onPress={() => this.setState({leaderboard: false})}>
+                        <Text style={{fontSize: 32, color: 'white', fontWeight: '800'}}>
+                            BACK
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </Modal>///
+        )
+    }
     /*
     renderRules() {
         return (
-            <Modal 
+            <Modal
                 animationType={"slide"}
                 transparent={true}
                 visible={this.state.rules}
@@ -428,7 +535,7 @@ export class Grid extends Component{
 
                     <TouchableOpacity onPress={() => this.setState({rules: false})}>
                         <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
-                            RESUME    
+                            RESUME
                         </Text>
                     </TouchableOpacity>
                 </View>
@@ -438,31 +545,29 @@ export class Grid extends Component{
 
     renderSettings() {
         return (
-            <Modal 
+            <Modal
                 animationType={"slide"}
-                transparent={true}
+                transparent={false}
                 visible={this.state.paused}
                 style={{flex: 1}}
             >
-                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
-                    <Text style={{fontSize: 32, fontWeight: '500', color: 'lightsalmon'}}>
-                        {this.state.name}
-                    </Text>
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,0.2)'}}>
                     <Text style={{fontSize: 64, fontWeight: '800'}}>
                         <Text style={{color: 'lightseagreen'}}>PAUSED</Text>
                     </Text>
-                    <TextInput
-                        style={{height: 40, paddingLeft: 120}}
-                        placeholder='what is your name'
-                        onChangeText={(text) => this.saveName(text)}
-                    />
+                    <Text style={{fontSize: 48, fontWeight: '800', color: 'black'}}>
+                        High Score:
+                    </Text>
+                    <Text style={{fontSize: 48, fontWeight: '800', color: 'black'}}>
+                        {this.state.highscore}
+                    </Text>
                     <TouchableOpacity onPress={() => this.setState({paused: false})}>
                         <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
-                            RESUME    
+                            RESUME
                         </Text>
                     </TouchableOpacity>
                 </View>
-            </Modal>///
+            </Modal>
         )
     }
 
@@ -470,7 +575,7 @@ export class Grid extends Component{
         return (
             <View style={{flex: 1, justifyContent: 'space-around'}}>
                 <View style={{padding: 15, paddingBottom: 5, justifyContent: 'space-between', alignItems: 'center', flexDirection: 'row'}}>
-                    <Text style={{fontWeight: '700', fontSize: 42, color: 'darkgray'}}>Score: {this.state.score}</Text> 
+                    <Text style={{fontWeight: '700', fontSize: 42, color: 'darkgray'}}>Score: {this.state.score}</Text>
                     <TouchableOpacity onPress={() => this.setState({leaderboard: true})}>
                         <Image style={{width: 40, height: 40}} source={require('../Tebble/leaders.png')}/>
                     </TouchableOpacity>
@@ -478,7 +583,7 @@ export class Grid extends Component{
                         <Image style={{width: 42, height: 42}} source={require('../Tebble/pausebutton.png')}/>
                     </TouchableOpacity>
                 </View>
-                <View style={{paddingLeft: 15, paddingBottom: 10}}> 
+                <View style={{paddingLeft: 15, paddingBottom: 10}}>
                     <Text style={{fontWeight: '700', fontSize: 16, color: 'gray'}}>Word: {this.wordreturner()}</Text>
                 </View>
                 <View style={{flexDirection: 'row', justifyContent: 'center'}}>
@@ -487,8 +592,9 @@ export class Grid extends Component{
                     </View>
                 </View>
                 {this.renderButtons()}
-                {this.renderStart()}
+                {this.state.started ? this.renderGameOver() : this.renderStart()}
                 {this.renderSettings()}
+                {this.retrieveLeaders()}
                 {this.renderLeaders()}
             </View>
         )
