@@ -22,14 +22,15 @@ export class Grid extends Component{
             h: props.h,
             grid: [],
             word: [],
+            highscores: [],
             score: 0,
             started: false,
             gameOver: true,
             paused: false,
             leaderboard: false,
-            rules: false
+            rules: false,
+            name: ""
         }
-        this.name = ""
         this.word = [];
         this.grid = [];
         this.touched = new Map();
@@ -42,8 +43,12 @@ export class Grid extends Component{
 
     componentDidMount() {
         this.createGrid();
-        var getname = AsyncStorage.getItem("tebbleName");
-        this.setState({name: getname});
+        AsyncStorage.getItem("Local_leaders").then((leadersStr)=>{
+        this.setState({highscores: leadersStr.split(',')})
+        });
+        AsyncStorage.getItem("local_name").then((nameStr)=>{
+        this.setState({name: nameStr})
+        });
     }
 
     createGrid() {
@@ -66,12 +71,10 @@ export class Grid extends Component{
 
     saveName(text) {
         this.setState({name: text});
-        AsyncStorage.setItem("tebbleName", text);
-        console.log(this.state.name);
-        console.log(AsyncStorage.getItem("tebbleName"));
+        AsyncStorage.setItem("local_name", text);
     }
 
-    changeTile(i, j, cell) { //must fix!!!
+    changeTile(i, j, cell) { 
         this.cells.get(i+''+j).changeLetter(String.fromCharCode(64 + cell));
         if (cell == 0){
             this.cells.get(i+''+j).changeColor('white');
@@ -85,15 +88,19 @@ export class Grid extends Component{
     }
 
 
-    loadNextTile() { //Must fix!!!
+    loadNextTile() { 
         var counter = 0;
         for (var i = 0; i < this.state.w; i++){
             if (this.grid[0][i] == 0){
                 counter++;
             }
         }
-        if (counter == 0){
-            this.setState({gameOver: !this.state.gameOver});
+        if (counter == 0){ //The game is over
+            var lead = this.state.highscores; //update the local highscores
+            lead.unshift(this.state.score);
+            lead.sort(function(a, b){return a-b});
+            this.setState({gameOver: !this.state.gameOver, highscores: lead});
+            AsyncStorage.setItem("Local_leaders", lead.toString());
             return 0;
         }
         var cell = this.CharRandomizer();
@@ -289,6 +296,17 @@ export class Grid extends Component{
         }
     }
 
+    LocalLdrs() {
+        var leaders = this.state.highscores.reverse()
+        return leaders.map(function(score, i){
+            return(
+                <View key={i}>
+                    <Text style={{fontSize: 32, fontWeight: '200'}}>{score}</Text>
+                </View>
+            );
+        });
+    }
+
     renderButtons() {
         return (
             <View style={{flexDirection: 'row', justifyContent: 'space-around', paddingTop: 15}}>
@@ -352,7 +370,7 @@ export class Grid extends Component{
                         </Text>
                     </TouchableOpacity>
                 </View>
-            </Modal> ///
+            </Modal> 
         )
     }
 
@@ -365,9 +383,10 @@ export class Grid extends Component{
                 style={{flex: 1}}
             >
                 <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
-                    <Text style={{fontSize: 64, fontWeight: '800'}}>
-                        <Text style={{color: 'khaki'}}>Leaders</Text>
+                    <Text style={{fontSize: 48, fontWeight: '800'}}>
+                        <Text style={{color: 'black'}}>High Scores:</Text>
                     </Text>
+                    {this.LocalLdrs()}
                     <TouchableOpacity onPress={() => this.setState({leaderboard: false})}>
                         <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
                             RESUME    
@@ -427,13 +446,13 @@ export class Grid extends Component{
             >
                 <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
                     <Text style={{fontSize: 32, fontWeight: '500', color: 'lightsalmon'}}>
-                        Name: {this.name}
+                        {this.state.name}
                     </Text>
                     <Text style={{fontSize: 64, fontWeight: '800'}}>
                         <Text style={{color: 'lightseagreen'}}>PAUSED</Text>
                     </Text>
                     <TextInput
-                        style={{height: 40, paddingLeft: 100}}
+                        style={{height: 40, paddingLeft: 120}}
                         placeholder='what is your name'
                         onChangeText={(text) => this.saveName(text)}
                     />
