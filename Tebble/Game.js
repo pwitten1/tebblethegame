@@ -6,7 +6,7 @@ export class Game extends Component {
     render() {
         return (
             <View style ={styles.container}>
-                <Grid w = {6} h = {9} />
+                <Grid w = {5} h = {8} />
         	</View>
         );
     }
