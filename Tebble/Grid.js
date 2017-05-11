@@ -11,6 +11,7 @@ TextInput,
 AsyncStorage
 } from 'react-native';
 import Cell from './Cell';
+import * as firebase from 'firebase';
 
 
 export class Grid extends Component{
@@ -35,19 +36,33 @@ export class Grid extends Component{
         this.grid = [];
         this.touched = new Map();
         this.cells = new Map();
-        this.speed = 250;
+        this.speed = 450;
         this.changeTile = this.changeTile.bind(this);
         this.dictionary = require('../Tebble/dict.json');
- 
+
+        // Initialize Firebase
+        var config = {
+          apiKey: "AIzaSyApDh39qPWTvfH92eEq79agpv5fyTsjcMI",
+          authDomain: "tebble-15923.firebaseapp.com",
+          databaseURL: "https://tebble-15923.firebaseio.com",
+          projectId: "tebble-15923",
+          storageBucket: "tebble-15923.appspot.com",
+          messagingSenderId: "347709083033"
+        };
+        firebase.initializeApp(config);
+        this.leaderboardDatabase = firebase.database();
     }
 
     componentDidMount() {
         this.createGrid();
-        AsyncStorage.getItem("Local_leaders").then((leadersStr)=>{
-        this.setState({highscores: leadersStr.split(',')})
+        var item = AsyncStorage.getItem("Local_highscore");
+        item.then((leadersStr)=>{
+            if (leadersStr !== undefined && leadersStr !== null) {
+                this.setState({highscores: leadersStr.split(',')});
+            }
         });
         AsyncStorage.getItem("local_name").then((nameStr)=>{
-        this.setState({name: nameStr})
+            this.setState({name: nameStr})
         });
     }
 
@@ -95,12 +110,12 @@ export class Grid extends Component{
                 counter++;
             }
         }
-        if (counter == 0){ //The game is over
+        if (counter < this.state.w){ //The game is over
             var lead = this.state.highscores; //update the local highscores
             lead.unshift(this.state.score);
             lead.sort(function(a, b){return a-b});
             this.setState({gameOver: !this.state.gameOver, highscores: lead});
-            AsyncStorage.setItem("Local_leaders", lead.toString());
+            AsyncStorage.setItem("Local_highscore", lead.toString());
             return 0;
         }
         var cell = this.CharRandomizer();
@@ -108,7 +123,7 @@ export class Grid extends Component{
         while (this.grid[0][startpos] != 0){
             startpos = Math.round(Math.random()*7);
         }
-        this.changeTile(0, startpos, cell);
+        this.changeTile(0, 2, cell);
         return 1;
     }
 
@@ -193,7 +208,6 @@ export class Grid extends Component{
                 this.cells.get(position[0]+''+position[1]).changeTouched(false);
             }
 
-            console.log(position[0] + " " + position[1]);
         }
         this.setState({word: []});
         this.setState({score: this.state.score + scoreupdater});
@@ -258,6 +272,10 @@ export class Grid extends Component{
                         {return;}
                     if (direction == 'right' && j == this.state.w-1)
                         {return;}
+                    if (direction == 'left' && this.grid[i][j-1] == 1)
+                        {return;}
+                    if (direction == 'right' && this.grid[i][j+1] == 1)
+                        {return;}
                     if (direction == 'left'){
                         this.changeTile(i, j-1, this.grid[i][j]);
                         this.changeTile(i, j, 0);
@@ -297,7 +315,9 @@ export class Grid extends Component{
     }
 
     LocalLdrs() {
-        var leaders = this.state.highscores.reverse()
+        var leaders = this.state.highscores.sort(function(a, b){return a-b}).reverse().slice(0, 5);
+        var national = ['Eisgruber', 'Tigerman2019', 'Paul', 'Joe', 'Zhan'];
+        var highsc = [420, 100, 90, 60, 40];
         return leaders.map(function(score, i){
             return(
                 <View key={i}>
@@ -305,6 +325,43 @@ export class Grid extends Component{
                 </View>
             );
         });
+    }
+
+    addToLeaderboard(name, score) {
+        var users = this.leaderboardDatabase.ref('users');
+        var nameExists = false;
+        users.once('value')
+            .then(function(snapshot) {
+                var user = snapshot.child(name);
+                nameExists = user.exists();
+                if (nameExists) {
+                    var highscore = Math.max(user.child('highscore').val(), score);
+                    users.child(name).set({
+                        'highscore': highscore
+                    });
+                }
+                else {
+                    users.child(name).set({
+                        'highscore': score
+                    });
+                }
+            });
+    }
+
+    retrieveLeaders() {
+        var users = this.leaderboardDatabase.ref('users');
+        var topTenNames = [];
+        var topTenScores = [];
+        users.orderByChild("highscore").once("value", function(snapshot) {
+           snapshot.forEach(function(userSnap) {
+              topTenNames.push(userSnap.key);
+              topTenScores.push(userSnap.child('highscore').val());
+          });
+        });
+        //console.log("scores " + topTenScores.toString());
+        //console.log("Names " + topTenNames.toString());
+        this.topTenNames = topTenNames.slice();
+        this.topTenScores = topTenScores.slice();
     }
 
     renderButtons() {
@@ -324,7 +381,7 @@ export class Grid extends Component{
     }    
 
     renderCells() {
-        var size = 60;
+        var size = 69;
         return this.state.grid.map((row, i) => {
             return (
                 <View key={i} style={{flexDirection: 'row'}}>
@@ -374,21 +431,78 @@ export class Grid extends Component{
         )
     }
 
+    renderGameOver() {
+        return (
+            <Modal
+                animationType={"slide"}
+                transparent={true}
+                visible={this.state.gameOver}
+                style={{flex: 1}}
+            >
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
+                    <Text style={{fontSize: 50, fontWeight: '800'}}>
+                          <Text style={{color: 'red'}}>G</Text>
+                          <Text style={{color: 'orange'}}>A</Text>
+                          <Text style={{color: 'yellow'}}>M</Text>
+                          <Text style={{color: 'green'}}>E</Text>
+                          <Text> </Text>
+                          <Text style={{color: 'blue'}}>O</Text>
+                          <Text style={{color: 'cyan'}}>V</Text>
+                          <Text style={{color: 'pink'}}>E</Text>
+                          <Text style={{color: 'purple'}}>R</Text>
+                    </Text>
+                    <Text style={{fontSize: 24, color: 'white', fontWeight: '500'}}>
+                        Final Score: {this.state.score}
+                    </Text>
+                    <TextInput
+                        style={{height: 40, color: 'white', paddingLeft: 54}}
+                        placeholderTextColor = 'white'
+                        placeholder='Enter your name for the leaderboard'
+                        onChangeText={(text) => this.saveName(text)}
+                    />
+                    <TouchableOpacity onPress={() => {
+                        this.addToLeaderboard(this.state.name, this.state.score);
+                        this.setState({started: false});
+                    }}>
+                        <Text style={{fontSize: 32, color: 'lightseagreen', fontWeight: '800'}}>
+                            SUBMIT
+                        </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => {this.startGame()}}>
+                        <Text style={{fontSize: 32, color: 'salmon', fontWeight: '800'}}>
+                            TRY AGAIN
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </Modal>
+        )
+    }
+
     renderLeaders() {
         return (
             <Modal 
                 animationType={"slide"}
-                transparent={true}
+                transparent={false}
                 visible={this.state.leaderboard}
                 style={{flex: 1}}
             >
                 <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
-                    <Text style={{fontSize: 48, fontWeight: '800'}}>
-                        <Text style={{color: 'black'}}>High Scores:</Text>
+                    <Text style={{fontSize: 32, fontWeight: '500', color: 'lightsalmon'}}>
+                        {this.state.name}
                     </Text>
-                    {this.LocalLdrs()}
+                    <Text style={{fontSize: 48, fontWeight: '800'}}>
+                        <Text style={{color: 'lightblue'}}>High Scores:</Text>
+                    </Text>
+                    <View style={{flexDirection: 'column'}}>
+                    <Text style={{fontSize: 20, color: 'white'}}>Local:          Global:</Text>
+                    <Text style={{fontSize: 20, color: 'white'}}>90               Eisgruber: 420</Text>
+                    <Text style={{fontSize: 20, color: 'white'}}>47               Tigerman2019: 100</Text>
+                    <Text style={{fontSize: 20, color: 'white'}}>43               Paul: 90</Text>
+                    <Text style={{fontSize: 20, color: 'white'}}>31               Joe: 60</Text>
+                    <Text style={{fontSize: 20, color: 'white'}}>27               Zhan: 48</Text>
+                    </View>
                     <TouchableOpacity onPress={() => this.setState({leaderboard: false})}>
-                        <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
+                        <Text style={{fontSize: 32, color: 'whitesmoke', fontWeight: '500'}}>
                             RESUME    
                         </Text>
                     </TouchableOpacity>
@@ -396,6 +510,7 @@ export class Grid extends Component{
             </Modal>
         )
     }
+
     /*
     renderRules() {
         return (
@@ -438,6 +553,38 @@ export class Grid extends Component{
 
     renderSettings() {
         return (
+            <Modal
+                animationType={"slide"}
+                transparent={false}
+                visible={this.state.paused}
+                style={{flex: 1}}
+            >
+                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,0.2)'}}>
+                    <Text style={{fontSize: 32, fontWeight: '500', color: 'blue'}}>
+                        {this.state.name}
+                    </Text>
+                    <Text style={{fontSize: 64, fontWeight: '800'}}>
+                        <Text style={{color: 'lightseagreen'}}>PAUSED</Text>
+                    </Text>
+                    <Text style={{fontSize: 32, fontWeight: '800', color: 'black'}}>
+                        Current Score:
+                    </Text>
+                    <Text style={{fontSize: 32, fontWeight: '800', color: 'black'}}>
+                        {this.state.score}
+                    </Text>
+                    <TouchableOpacity onPress={() => this.setState({paused: false})}>
+                        <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
+                            RESUME
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            </Modal>
+        )
+    }
+    
+    /*
+    renderSettings() {
+        return (
             <Modal 
                 animationType={"slide"}
                 transparent={true}
@@ -464,7 +611,7 @@ export class Grid extends Component{
                 </View>
             </Modal>///
         )
-    }
+    }*/
 
     render(){
         return (
@@ -487,8 +634,9 @@ export class Grid extends Component{
                     </View>
                 </View>
                 {this.renderButtons()}
-                {this.renderStart()}
+                {this.state.started ? this.renderGameOver() : this.renderStart()}
                 {this.renderSettings()}
+                {this.retrieveLeaders()}
                 {this.renderLeaders()}
             </View>
         )

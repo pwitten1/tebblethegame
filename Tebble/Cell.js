@@ -40,7 +40,7 @@ export class Cell extends Component {
         	color = 'darkorange';
         }
         return (<View style = {{borderColor: 'lightgray', backgroundColor: color , width: size, height:size, borderWidth: 0.5}}>
-        		<Text style={{textAlign: 'center', color:'white', lineHeight: 22.5, borderColor: 'lightgray', fontSize: 30}}>{'\n'}{this.state.letter}</Text>
+        		<Text style={{textAlign: 'center', color:'white', lineHeight: 27, borderColor: 'lightgray', fontSize: 34, fontWeight: '700'}}>{'\n'}{this.state.letter}</Text>
         	</View>)
     }
 };
