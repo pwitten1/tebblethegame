@@ -7,11 +7,10 @@ Text,
 Modal,
 TouchableOpacity,
 Image,
-TextInput,
-AsyncStorage
+TextInput
 } from 'react-native';
 import Cell from './Cell';
-import * as firebase from 'firebase';
+//var Sound = require('react-native-sound');
 
 export class Grid extends Component{
 
@@ -22,46 +21,37 @@ export class Grid extends Component{
             h: props.h,
             grid: [],
             word: [],
-            highscore: 0,
-            score: 0,
-            started: false,
-            gameOver: true,
             paused: false,
-            leaderboard: false,
             rules: false,
-            name: ""
+            name: "Tebbler",
+            score: 0
         }
         this.word = [];
         this.grid = [];
         this.touched = new Map();
         this.cells = new Map();
-        this.speed = 250;
+        this.speed = 25;
+        this.blurAmount = 30;
         this.changeTile = this.changeTile.bind(this);
         this.dictionary = require('../Tebble/dict.json');
-        this.topTenNames = [];
-        this.topTenScores = [];
+        this.counter = 0;
+        this.thresh = 14;
+        this.duration = 400; //10 sec before thresh decreases
 
-        // Initialize Firebase
-        var config = {
-          apiKey: "AIzaSyApDh39qPWTvfH92eEq79agpv5fyTsjcMI",
-          authDomain: "tebble-15923.firebaseapp.com",
-          databaseURL: "https://tebble-15923.firebaseio.com",
-          projectId: "tebble-15923",
-          storageBucket: "tebble-15923.appspot.com",
-          messagingSenderId: "347709083033"
-        };
-        firebase.initializeApp(config);
-        this.leaderboardDatabase = firebase.database();
+        // Initialize Music
+        // var sound = new Sound('../Tebble/rainbows.mp3', (error) => {
+        //     if (error) {
+        //       console.log('failed to load the sound', error);
+        //       return;
+        //     }
+        //     // loaded successfully
+        //     console.log('duration in seconds: ' + whoosh.getDuration() + 'number of channels: ' + whoosh.getNumberOfChannels());
+        // });
+        // sound.play();
     }
 
     componentDidMount() {
         this.createGrid();
-        var item = AsyncStorage.getItem("Local_highscore");
-        item.then((highscoreStr)=>{
-            if (highscoreStr !== undefined) {
-                this.setState({highscore: parseInt(highscoreStr, 10)});
-            }
-        });
     }
 
     createGrid() {
@@ -82,23 +72,36 @@ export class Grid extends Component{
         });
     }
 
-    saveName(text) {
-        this.setState({name: text});
-    }
-
     changeTile(i, j, cell) {
-        this.cells.get(i+''+j).changeLetter(String.fromCharCode(64 + cell));
+        var thisCell = this.cells.get(i+''+j);
+        if (cell == 27){
+            thisCell.changeLetter('3x');
+            thisCell.changeColor('indianred');
+            this.grid[i][j] = cell;
+            return;
+        }
+        if (cell == 28){
+            thisCell.changeLetter('2x');
+            thisCell.changeColor('lightseagreen');
+            this.grid[i][j] = cell;
+            return;
+        }
+        thisCell.changeTextColor('white');
+        thisCell.changeLetter(String.fromCharCode(64 + cell));
+        thisCell.changePoints(this.scorer(cell));
         if (cell == 0){
-            this.cells.get(i+''+j).changeColor('white');
-            this.cells.get(i+''+j).changeTouched(false);
+            thisCell.changeColor('white');
+            thisCell.changeTouched(false);
         }
         else{
-            this.cells.get(i+''+j).changeColor('black');
-
+            thisCell.changeColor('black');
         }
         this.grid[i][j] = cell;
     }
 
+    gameOver(){
+        this.props.gameOver(this.state.score);
+    }
 
     loadNextTile() {
         var counter = 0;
@@ -107,54 +110,52 @@ export class Grid extends Component{
                 counter++;
             }
         }
-        if (counter == 0){ //The game is over
-            var lead = Math.max(this.state.highscore, this.state.score); //update the local highscore
-            this.setState({gameOver: !this.state.gameOver, highscore: lead});
-            AsyncStorage.setItem("Local_highscore", lead.toString());
+        if (counter < this.state.w){ //The game is over
+            var lead = Math.max(this.state.score, this.state.highscore); //update the local highscore
+            this.setState({ highscore: lead});
+            this.gameOver();
             return 0;
         }
         var cell = this.CharRandomizer();
-        var startpos = Math.round(Math.random()*7);
-        while (this.grid[0][startpos] != 0){
-            startpos = Math.round(Math.random()*7);
-        }
-        this.changeTile(0, startpos, cell);
+        this.changeTile(0, 2, cell);
         return 1;
     }
 
     CharRandomizer() { //spawn letters at a semi-natural frequency
-        var num = Math.round(Math.random()*93);
-        if (num < 5) { return 1; } //letter is 'a'
-        else if(num < 8) { return 2; } //letter is 'b'
-        else if(num < 10) { return 3; } //letter is 'c'
-        else if(num < 13) { return 4; } //letter is 'd'
-        else if(num < 20) { return 5; } //letter is 'e'
-        else if(num < 22) { return 6; } //letter is 'f'
-        else if(num < 26) { return 7; } //letter is 'g'
-        else if(num < 30) { return 8; } //letter is 'h'
-        else if(num < 36) { return 9; } //letter is 'i'
-        else if(num < 38) { return 10; } //letter is 'j'
-        else if(num < 41) { return 11; } //letter is 'k'
-        else if(num < 46) { return 12; } //letter is 'l'
-        else if(num < 50) { return 13; } //letter is 'm'
-        else if(num < 57) { return 14; } //letter is 'n'
-        else if(num < 62) { return 15; } //letter is 'o'
-        else if(num < 64) { return 16; } //letter is 'p'
-        else if(num < 65) { return 17; } //letter is 'q'
-        else if(num < 70) { return 18; } //letter is 'r'
-        else if(num < 76) { return 19; } //letter is 's'
-        else if(num < 82) { return 20; } //letter is 't'
-        else if(num < 87) { return 21; } //letter is 'u'
-        else if(num < 88) { return 22; } //letter is 'v'
-        else if(num < 89) { return 23; } //letter is 'w'
-        else if(num < 90) { return 24; } //letter is 'x'
-        else if(num < 92) { return 25; } //letter is 'y'
-        else if(num < 93) { return 26; } //letter is 'z'
+        var num = Math.round(Math.random()*115);
+        if (num < 8) { return 1; } //letter is 'a'
+        else if(num < 11) { return 2; } //letter is 'b'
+        else if(num < 14) { return 3; } //letter is 'c'
+        else if(num < 19) { return 4; } //letter is 'd'
+        else if(num < 29) { return 5; } //letter is 'e'
+        else if(num < 32) { return 6; } //letter is 'f'
+        else if(num < 36) { return 7; } //letter is 'g'
+        else if(num < 38) { return 8; } //letter is 'h'
+        else if(num < 45) { return 9; } //letter is 'i'
+        else if(num < 46) { return 10; } //letter is 'j'
+        else if(num < 49) { return 11; } //letter is 'k'
+        else if(num < 53) { return 12; } //letter is 'l'
+        else if(num < 58) { return 13; } //letter is 'm'
+        else if(num < 63) { return 14; } //letter is 'n'
+        else if(num < 72) { return 15; } //letter is 'o'
+        else if(num < 75) { return 16; } //letter is 'p'
+        else if(num < 76) { return 17; } //letter is 'q'
+        else if(num < 81) { return 18; } //letter is 'r'
+        else if(num < 87) { return 19; } //letter is 's'
+        else if(num < 93) { return 20; } //letter is 't'
+        else if(num < 97) { return 21; } //letter is 'u'
+        else if(num < 98) { return 22; } //letter is 'v'
+        else if(num < 101) { return 23; } //letter is 'w'
+        else if(num < 102) { return 24; } //letter is 'x'
+        else if(num < 105) { return 25; } //letter is 'y'
+        else if(num < 106) { return 26; } //letter is 'z'
+        else if(num < 110) { return 27; } //TRIPLE TRIPLE TRIPLE
+        else if(num < 115) { return 28; } //DOUBLE DOUBLE
         return 1; //this should not happen, but return 'a'
     }
 
     startGame() {
-        this.setState({gameOver: false, started: true, score: 0, word: []});
+        this.setState({score: 0, word: []});
         for(i = 0; i < this.state.h; i++) {
             for(j = 0; j < this.state.w; j++) {//resets the board before starting
                 this.changeTile(i, j, 0);
@@ -170,10 +171,33 @@ export class Grid extends Component{
     }
 
     MoveDown(i, j){
-        if(this.grid[i+1][j] == 0){
+        if (i < this.state.h-1 && this.grid[i+1][j] == 0){
             this.changeTile(i+1, j, this.grid[i][j]);
             this.changeTile(i, j, 0);
             return 1;
+        }
+        if (this.grid[i][j] >= 27){ //checking for 3x or 2x tile
+            if (i == this.state.h-1){ //hits bottom
+                var cell = this.cells.get(i+''+j);
+                cell.changeTextColor('white');
+                this.changeTile(i, j, 0);
+                this.grid[i][j] = 0;
+                return 1;
+            }
+            else{ //hits another tile
+                var cell = this.cells.get((i+1)+''+j);
+                if (this.grid[i][j] == 27){
+                    cell.changePoints(cell.state.points * 3);
+                    cell.changeTextColor('indianred');
+                }
+                else{
+                    cell.changePoints(cell.state.points * 2);
+                    cell.changeTextColor('lightseagreen');
+                }
+                this.changeTile(i, j, 0);
+                this.grid[i][j] = 0;
+                return 1;
+            }
         }
         return 0;
     }
@@ -196,14 +220,13 @@ export class Grid extends Component{
         for(i = 0; i < this.state.word.length; i++) {
             var position = this.state.word[i].split(',');
             if(spot != -1) {
+                scoreupdater += this.cells.get(position[0]+''+position[1]).state.points;
                 this.changeTile(position[0], position[1], 0);
-                scoreupdater += this.scorer(position[2]);
             }
             else {
                 this.cells.get(position[0]+''+position[1]).changeTouched(false);
             }
 
-            console.log(position[0] + " " + position[1]);
         }
         this.setState({word: []});
         this.setState({score: this.state.score + scoreupdater});
@@ -240,9 +263,18 @@ export class Grid extends Component{
     }
 
     step() {
+        this.counter++;
+        if (this.counter % this.thresh != 0){
+            return;
+        }
+        if (this.counter >= this.duration){
+            console.log(this.thresh)
+            this.thresh = Math.max(2, this.thresh - 1);
+            this.counter = 0;
+        }
         var didMove = 0;
         const {grid, w, h} = this.state;
-        for(i = this.state.h-2; i >= 0; i--) {
+        for(i = this.state.h-1; i >= 0; i--) {
             for(j = this.state.w-1; j >= 0; j--) {
                 if(this.state.grid[i][j] != 0){
                     didMove += this.MoveDown(i, j);
@@ -268,12 +300,12 @@ export class Grid extends Component{
                         {return;}
                     if (direction == 'right' && j == this.state.w-1)
                         {return;}
-                    if (direction == 'left'){
+                    if (direction == 'left' && this.grid[i][j-1] == 0){
                         this.changeTile(i, j-1, this.grid[i][j]);
                         this.changeTile(i, j, 0);
                         return;
                     }
-                    if (direction == 'right'){
+                    if (direction == 'right' && this.grid[i][j+1] == 0){
                         this.changeTile(i, j+1, this.grid[i][j]);
                         this.changeTile(i, j, 0);
                         return;
@@ -285,7 +317,7 @@ export class Grid extends Component{
     }
 
 
-    clickTile(i, j) {
+    clickTile(i, j){
         if(this.grid[i][j] != 0 && ((i < this.state.h-1 && this.grid[i+1][j] != 0) || i == this.state.h-1)){
             this.cells.get(i+''+j).changeTouched(true);
             this.touched.set(i+''+j, 1);
@@ -306,39 +338,14 @@ export class Grid extends Component{
         }
     }
 
-    addToLeaderboard(name, score) {
-        var users = this.leaderboardDatabase.ref('users');
-        var nameExists = false;
-        users.once('value')
-            .then(function(snapshot) {
-                var user = snapshot.child(name);
-                nameExists = user.exists();
-                if (nameExists) {
-                    var highscore = Math.max(user.child('highscore').val(), score);
-                    users.child(name).set({
-                        'highscore': highscore
-                    });
-                }
-                else {
-                    users.child(name).set({
-                        'highscore': score
-                    });
-                }
-            });
+    pause(){
+        this.setState({paused: true});
+        this.props.pause(this.state.score);
     }
 
-    retrieveLeaders() {
-        var users = this.leaderboardDatabase.ref('users');
-        var topTenNames = [];
-        var topTenScores = [];
-        users.orderByChild("highscore").once("value", function(snapshot) {
-           snapshot.forEach(function(userSnap) {
-              topTenNames.push(userSnap.key);
-              topTenScores.push(userSnap.child('highscore').val());
-          });
-        });
-        this.topTenNames = topTenNames.slice();
-        this.topTenScores = topTenScores.slice();
+    leader(){
+        this.setState({paused: true});
+        this.props.leader();
     }
 
     renderButtons() {
@@ -358,10 +365,10 @@ export class Grid extends Component{
     }
 
     renderCells() {
-        var size = 60;
+        var size = 69;
         return this.state.grid.map((row, i) => {
             return (
-                <View key={i} style={{flexDirection: 'row'}}>
+                <View key={i} style={{flexDirection: 'row', justifyContent: 'space-around'}}>
                     {row.map((cell, j) => {
                         if(cell == 0){
                             var color = 'white';
@@ -371,204 +378,12 @@ export class Grid extends Component{
                             var color = 'black';
                             var letter = String.fromCharCode(64 + cell);
                         }
-                        return <View key={j} onStartShouldSetResponder={() => this.clickTile(i, j)}><Cell key={j} ref={(c) => { this.cells.set(i+''+j, c);}} color={color} size={size} string={letter}/></View>
+                        var points = this.scorer(cell);
+                        return <View key={j} onStartShouldSetResponder={() => this.clickTile(i, j)}><Cell key={j} ref={(c) => { this.cells.set(i+''+j, c);}} color={color} size={size} string={letter} points={points} textColor = {'white'}/></View>
                     })}
-                </View> ///
+                </View>
             )
         })
-    }
-
-    renderStart() {
-        return (
-            <Modal
-                animationType={"slide"}
-                transparent={true}
-                visible={this.state.gameOver}
-                style={{flex: 1}}
-            >
-                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
-                    <Text style={{fontSize: 64, fontWeight: '800'}}>
-                        <Text style={{color: 'red'}}>T</Text>
-                        <Text style={{color: 'orange'}}>E</Text>
-                        <Text style={{color: 'yellow'}}>B</Text>
-                        <Text style={{color: 'green'}}>B</Text>
-                        <Text style={{color: 'blue'}}>L</Text>
-                        <Text style={{color: 'purple'}}>E</Text>
-                    </Text>
-                    <TouchableOpacity onPress={() => {this.startGame()}}>
-                        <Text style={{fontSize: 32, color: 'salmon', fontWeight: '800'}}>
-                            START
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </Modal>
-        )
-    }
-
-    renderGameOver() {
-        return (
-            <Modal
-                animationType={"slide"}
-                transparent={true}
-                visible={this.state.gameOver}
-                style={{flex: 1}}
-            >
-                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.5)'}}>
-                    <Text style={{fontSize: 50, fontWeight: '800'}}>
-                          <Text style={{color: 'red'}}>G</Text>
-                          <Text style={{color: 'orange'}}>A</Text>
-                          <Text style={{color: 'yellow'}}>M</Text>
-                          <Text style={{color: 'green'}}>E</Text>
-                          <Text> </Text>
-                          <Text style={{color: 'blue'}}>O</Text>
-                          <Text style={{color: 'cyan'}}>V</Text>
-                          <Text style={{color: 'pink'}}>E</Text>
-                          <Text style={{color: 'purple'}}>R</Text>
-                    </Text>
-                    <Text style={{fontSize: 24, color: 'white', fontWeight: '500'}}>
-                        Final Score: {this.state.score}
-                    </Text>
-                    <TextInput
-                        style={{height: 40, color: 'white', paddingLeft: 54}}
-                        placeholderTextColor = 'white'
-                        placeholder='Enter your name for the leaderboard'
-                        onChangeText={(text) => this.saveName(text)}
-                    />
-                    <TouchableOpacity onPress={() => {
-                        this.addToLeaderboard(this.state.name, this.state.score);
-                        this.setState({started: false});
-                    }}>
-                        <Text style={{fontSize: 32, color: 'lightseagreen', fontWeight: '800'}}>
-                            SUBMIT
-                        </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => {this.startGame()}}>
-                        <Text style={{fontSize: 32, color: 'salmon', fontWeight: '800'}}>
-                            TRY AGAIN
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </Modal>
-        )
-    }
-
-    renderLeaders() {
-        return (
-            <Modal
-                animationType={"slide"}
-                transparent={false}
-                visible={this.state.leaderboard}
-                style={{flex: 1}}
-            >
-                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,.2)'}}>
-                    <Text style={{fontSize: 40, fontWeight: '800'}}>
-                        <Text style={{color: 'lightseagreen'}}>LEADERBOARD</Text>
-                    </Text>
-                    <Text style={{fontSize: 15, fontWeight: '800'}}>
-                        1. {this.topTenNames[0]}: {this.topTenScores[0]}
-                    </Text>
-                    <Text style={{fontSize: 15, fontWeight: '800'}}>
-                        2. {this.topTenNames[1]}: {this.topTenScores[1]}
-                    </Text>
-                    <Text style={{fontSize: 15, fontWeight: '800'}}>
-                        3. {this.topTenNames[2]}: {this.topTenScores[2]}
-                    </Text>
-                    <Text style={{fontSize: 15, fontWeight: '800'}}>
-                        4. {this.topTenNames[3]}: {this.topTenScores[3]}
-                    </Text>
-                    <Text style={{fontSize: 15, fontWeight: '800'}}>
-                        5. {this.topTenNames[4]}: {this.topTenScores[4]}
-                    </Text>
-                    <Text style={{fontSize: 15, fontWeight: '800'}}>
-                        6. {this.topTenNames[5]}: {this.topTenScores[5]}
-                    </Text>
-                    <Text style={{fontSize: 15, fontWeight: '800'}}>
-                        7. {this.topTenNames[6]}: {this.topTenScores[6]}
-                    </Text>
-                    <Text style={{fontSize: 15, fontWeight: '800'}}>
-                        8. {this.topTenNames[7]}: {this.topTenScores[7]}
-                    </Text>
-                    <Text style={{fontSize: 15, fontWeight: '800'}}>
-                        9. {this.topTenNames[8]}: {this.topTenScores[8]}
-                    </Text>
-                    <Text style={{fontSize: 15, fontWeight: '800'}}>
-                        10. {this.topTenNames[9]}: {this.topTenScores[9]}
-                    </Text>
-                    <TouchableOpacity onPress={() => this.setState({leaderboard: false})}>
-                        <Text style={{fontSize: 32, color: 'white', fontWeight: '800'}}>
-                            BACK
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </Modal>///
-        )
-    }
-    /*
-    renderRules() {
-        return (
-            <Modal
-                animationType={"slide"}
-                transparent={true}
-                visible={this.state.rules}
-                style={{flex: 1}}
-            >
-                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgb(0,0,0)'}}>
-                    <Text style={{fontSize: 42, fontWeight: '800'}}>
-                        <Text style={{color: 'crimson'}}>Tebble: the rules</Text>
-                    </Text>
-                    <Image style={{height: 100, width: 200}} source={require('../Tebble/tap.png')}/>
-                    <Text style={{fontSize: 20, fontWeight: '400', color: 'bisque'}}>
-                        Tap on the letters in order to form words
-                    </Text>
-                    <Image style={{height: 100, width: 200}} source={require('../Tebble/checkword.png')}/>
-                    <Text style={{fontSize: 20, fontWeight: '400', color: 'bisque'}}>
-                        Submitting words will cause the letters to disappear, and increase your score
-                    </Text>
-                    <Image style={{height: 60, width: 60}} source={require('../Tebble/left-filled.png')}/>
-                    <Image style={{height: 60, width: 60}} source={require('../Tebble/right-filled.png')}/>
-                    <Text style={{fontSize: 20, fontWeight: '400', color: 'bisque'}}>
-                        Use the two arrow keys to move the letters as they fall
-                    </Text>
-                    <Text style={{fontSize: 20, fontWeight: '400', color: 'bisque'}}>
-                        The game ends when the boardfills up all the way!
-                    </Text>
-
-                    <TouchableOpacity onPress={() => this.setState({rules: false})}>
-                        <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
-                            RESUME
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </Modal>///
-        )
-    }    */
-
-    renderSettings() {
-        return (
-            <Modal
-                animationType={"slide"}
-                transparent={false}
-                visible={this.state.paused}
-                style={{flex: 1}}
-            >
-                <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor:'rgba(0,0,0,0.2)'}}>
-                    <Text style={{fontSize: 64, fontWeight: '800'}}>
-                        <Text style={{color: 'lightseagreen'}}>PAUSED</Text>
-                    </Text>
-                    <Text style={{fontSize: 48, fontWeight: '800', color: 'black'}}>
-                        High Score:
-                    </Text>
-                    <Text style={{fontSize: 48, fontWeight: '800', color: 'black'}}>
-                        {this.state.highscore}
-                    </Text>
-                    <TouchableOpacity onPress={() => this.setState({paused: false})}>
-                        <Text style={{fontSize: 32, color: 'white', fontWeight: '500'}}>
-                            RESUME
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </Modal>
-        )
     }
 
     render(){
@@ -576,10 +391,10 @@ export class Grid extends Component{
             <View style={{flex: 1, justifyContent: 'space-around'}}>
                 <View style={{padding: 15, paddingBottom: 5, justifyContent: 'space-between', alignItems: 'center', flexDirection: 'row'}}>
                     <Text style={{fontWeight: '700', fontSize: 42, color: 'darkgray'}}>Score: {this.state.score}</Text>
-                    <TouchableOpacity onPress={() => this.setState({leaderboard: true})}>
+                    <TouchableOpacity onPress={() => this.leader()}>
                         <Image style={{width: 40, height: 40}} source={require('../Tebble/leaders.png')}/>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => this.setState({paused: true})}>
+                    <TouchableOpacity onPress={() => this.pause()}>
                         <Image style={{width: 42, height: 42}} source={require('../Tebble/pausebutton.png')}/>
                     </TouchableOpacity>
                 </View>
@@ -592,10 +407,6 @@ export class Grid extends Component{
                     </View>
                 </View>
                 {this.renderButtons()}
-                {this.state.started ? this.renderGameOver() : this.renderStart()}
-                {this.renderSettings()}
-                {this.retrieveLeaders()}
-                {this.renderLeaders()}
             </View>
         )
     }
