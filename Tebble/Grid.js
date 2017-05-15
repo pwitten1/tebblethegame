@@ -48,6 +48,7 @@ export class Grid extends Component{
         //     console.log('duration in seconds: ' + whoosh.getDuration() + 'number of channels: ' + whoosh.getNumberOfChannels());
         // });
         // sound.play();
+
     }
 
     componentDidMount() {
@@ -346,6 +347,43 @@ export class Grid extends Component{
     leader(){
         this.setState({paused: true});
         this.props.leader();
+    }
+
+    addToLeaderboard(name, score) {
+        var users = this.leaderboardDatabase.ref('users');
+        var nameExists = false;
+        users.once('value')
+            .then(function(snapshot) {
+                var user = snapshot.child(name);
+                nameExists = user.exists();
+                if (nameExists) {
+                    var highscore = Math.max(user.child('highscore').val(), score);
+                    users.child(name).set({
+                        'highscore': highscore
+                    });
+                }
+                else {
+                    users.child(name).set({
+                        'highscore': score
+                    });
+                }
+            });
+    }
+
+    retrieveLeaders() {
+        var users = this.leaderboardDatabase.ref('users');
+        var topTenNames = [];
+        var topTenScores = [];
+        users.orderByChild("highscore").once("value", function(snapshot) {
+           snapshot.forEach(function(userSnap) {
+              topTenNames.push(userSnap.key);
+              topTenScores.push(userSnap.child('highscore').val());
+          });
+        });
+        //console.log("scores " + topTenScores.toString());
+        //console.log("Names " + topTenNames.toString());
+        this.topTenNames = topTenNames.slice();
+        this.topTenScores = topTenScores.slice();
     }
 
     renderButtons() {

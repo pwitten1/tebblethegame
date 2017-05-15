@@ -49,6 +49,7 @@ export class Cell extends Component {
 			<View style = {{borderColor: 'lightgray', backgroundColor: color , width: size, height:size, borderWidth: 0.5}}>
 				<Text style={{textAlign: 'center', color: this.state.textColor, lineHeight: 27, borderColor: 'lightgray', fontSize: 34, fontWeight: '700'}}>{'\n'}{this.state.letter}</Text>
 				<Text style={{textAlign: 'right', color: this.state.textColor, lineHeight: 7, borderColor: 'lightgray', fontSize: 15, fontWeight: '500'}}>{'\n'}{this.state.points}</Text>
+
         	</View>)
     }
 };
