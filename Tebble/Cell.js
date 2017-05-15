@@ -11,11 +11,16 @@ export class Cell extends Component {
 		super(props);
 		this.state={
 			letter: props.string,
-			value: props.number,
 			size: props.size,
 			color: props.color,
+			textColor: props.textColor,
 			touched: false,
+			points: props.points,
 		}
+	}
+
+	changePoints(points){
+		this.setState({points: points});
 	}
 
 	changeLetter(string){
@@ -26,12 +31,12 @@ export class Cell extends Component {
 		this.setState({color: color});
 	}
 
-	changeValue(number){
-		this.setState({value: number});
-	}
-
 	changeTouched(bool){
 		this.setState({touched: bool});
+	}
+
+	changeTextColor(textColor){
+		this.setState({textColor: textColor});
 	}
 
     render() {
@@ -39,8 +44,12 @@ export class Cell extends Component {
         if (color == 'black' && this.state.touched == true){
         	color = 'darkorange';
         }
-        return (<View style = {{borderColor: 'lightgray', backgroundColor: color , width: size, height:size, borderWidth: 0.5}}>
-        		<Text style={{textAlign: 'center', color:'white', lineHeight: 27, borderColor: 'lightgray', fontSize: 34, fontWeight: '700'}}>{'\n'}{this.state.letter}</Text>
+
+        return (
+			<View style = {{borderColor: 'lightgray', backgroundColor: color , width: size, height:size, borderWidth: 0.5}}>
+				<Text style={{textAlign: 'center', color: this.state.textColor, lineHeight: 27, borderColor: 'lightgray', fontSize: 34, fontWeight: '700'}}>{'\n'}{this.state.letter}</Text>
+				<Text style={{textAlign: 'right', color: this.state.textColor, lineHeight: 7, borderColor: 'lightgray', fontSize: 15, fontWeight: '500'}}>{'\n'}{this.state.points}</Text>
+
         	</View>)
     }
 };
