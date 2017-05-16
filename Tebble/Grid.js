@@ -36,7 +36,8 @@ export class Grid extends Component{
         this.dictionary = require('../Tebble/dict.json');
         this.counter = 0;
         this.thresh = 14;
-        this.duration = 400; //10 sec before thresh decreases
+        this.duration = 800; //20 sec before thresh decreases by 1
+        this.cellsRendered = false; //false at beginning, true after cells are rendered for the first time
 
         // Initialize Music
         // var sound = new Sound('../Tebble/rainbows.mp3', (error) => {
@@ -157,6 +158,8 @@ export class Grid extends Component{
 
     startGame() {
         this.setState({score: 0, word: []});
+        this.counter = 0;
+        this.thresh = 14;
         for(i = 0; i < this.state.h; i++) {
             for(j = 0; j < this.state.w; j++) {//resets the board before starting
                 this.changeTile(i, j, 0);
@@ -174,6 +177,10 @@ export class Grid extends Component{
     MoveDown(i, j){
         if (i < this.state.h-1 && this.grid[i+1][j] == 0){
             this.changeTile(i+1, j, this.grid[i][j]);
+            var thisCell = this.cells.get(i+''+j);
+            var bottomCell = this.cells.get((i+1)+''+j);
+            bottomCell.changePoints(thisCell.state.points);
+            bottomCell.changeTextColor(thisCell.state.textColor);
             this.changeTile(i, j, 0);
             return 1;
         }
@@ -269,7 +276,6 @@ export class Grid extends Component{
             return;
         }
         if (this.counter >= this.duration){
-            console.log(this.thresh)
             this.thresh = Math.max(2, this.thresh - 1);
             this.counter = 0;
         }
@@ -404,6 +410,9 @@ export class Grid extends Component{
 
     renderCells() {
         var size = 69;
+        if (!this.cellsRendered && this.cells.get(1+''+1) != null) {
+            this.cellsRendered = true;
+        }
         return this.state.grid.map((row, i) => {
             return (
                 <View key={i} style={{flexDirection: 'row', justifyContent: 'space-around'}}>
@@ -417,7 +426,15 @@ export class Grid extends Component{
                             var letter = String.fromCharCode(64 + cell);
                         }
                         var points = this.scorer(cell);
-                        return <View key={j} onStartShouldSetResponder={() => this.clickTile(i, j)}><Cell key={j} ref={(c) => { this.cells.set(i+''+j, c);}} color={color} size={size} string={letter} points={points} textColor = {'white'}/></View>
+                        var textColor = 'white';
+                        if (this.cellsRendered) {
+                            var thisCell = this.cells.get(i+''+j);
+                            color = thisCell.state.color;
+                            letter = thisCell.state.letter;
+                            points = thisCell.state.points;
+                            textColor = thisCell.state.textColor;
+                        }
+                        return <View key={j} onStartShouldSetResponder={() => this.clickTile(i, j)}><Cell key={j} ref={(c) => { this.cells.set(i+''+j, c);}} color={color} size={size} string={letter} points={points} textColor = {textColor}/></View>
                     })}
                 </View>
             )
